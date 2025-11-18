@@ -1,0 +1,427 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { RefreshCcw, Briefcase, Zap, MessageCircle, GitBranch, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+
+// --- MOCK API Configuration ---
+// In a real environment, this would be the address where your Flask server runs.
+const API_BASE_URL = 'http://127.0.0.1:5000/api/v1';
+
+// --- Main App Component ---
+const App = () => {
+    // ---------------------------------------------------------------------
+    // 1. STATE MANAGEMENT
+    // ---------------------------------------------------------------------
+    const [resumeText, setResumeText] = useState('');
+    const [analysisResult, setAnalysisResult] = useState(null);
+    const [interviewTranscript, setInterviewTranscript] = useState('');
+    const [interviewResult, setInterviewResult] = useState(null);
+    const [chatQuery, setChatQuery] = useState('');
+    const [chatHistory, setChatHistory] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [currentView, setCurrentView] = useState('profile'); // 'profile', 'interview', 'mentor', 'university'
+
+    // Extracted values for ease of use
+    const profileMatchPercentage = analysisResult?.profile_match_percentage || 0;
+    const recommendedDomain = analysisResult?.career_recommendations?.[0] || 'Unknown';
+
+    // ---------------------------------------------------------------------
+    // 2. API FUNCTIONS (Calling the Python Backend)
+    // ---------------------------------------------------------------------
+
+    const handleAnalyzeProfile = useCallback(async () => {
+        if (!resumeText.trim()) {
+            setError("Please paste a resume or skill summary to analyze.");
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        setAnalysisResult(null);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/analyze_profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resume_text: resumeText }),
+            });
+
+            if (!response.ok) throw new Error("Backend analysis failed.");
+            
+            const data = await response.json();
+            setAnalysisResult(data);
+            setInterviewResult(null); // Reset interview results when profile changes
+            setChatHistory([{ type: 'mentor', text: `Hello! Based on your profile, your recommended domain is **${data.career_recommendations[0]}**. What can I help you with?`}]);
+        
+        } catch (err) {
+            console.error("Analysis Error:", err);
+            setError(`Failed to connect to backend or process data. Error: ${err.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [resumeText]);
+
+    const handleMockInterview = useCallback(async () => {
+        if (!interviewTranscript.trim()) {
+            setError("Please provide a transcribed response for the mock interview.");
+            return;
+        }
+        if (!analysisResult) {
+            setError("Please analyze your profile first.");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/mock_interview`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transcript: interviewTranscript,
+                    profile_match_percentage: profileMatchPercentage
+                }),
+            });
+
+            if (!response.ok) throw new Error("Mock interview analysis failed.");
+            
+            const data = await response.json();
+            setInterviewResult(data);
+        } catch (err) {
+            console.error("Interview Error:", err);
+            setError(`Failed to process interview. Error: ${err.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [interviewTranscript, analysisResult, profileMatchPercentage]);
+
+    const handleChatQuery = useCallback(async () => {
+        if (!chatQuery.trim()) return;
+        if (!recommendedDomain || recommendedDomain === 'Unknown') {
+             setError("Please analyze your profile first to get a career domain.");
+             return;
+        }
+
+        const newChatHistory = [...chatHistory, { type: 'user', text: chatQuery }];
+        setChatHistory(newChatHistory);
+        setChatQuery('');
+        
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/mentor_chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: chatQuery,
+                    domain: recommendedDomain
+                }),
+            });
+
+            if (!response.ok) throw new Error("Chatbot failed to respond.");
+
+            const data = await response.json();
+            setChatHistory(prev => [...prev, { type: 'mentor', text: data.mentor_response }]);
+
+        } catch (err) {
+            console.error("Chat Error:", err);
+            setChatHistory(prev => [...prev, { type: 'mentor', text: "Sorry, I can't connect to my knowledge base right now. Please try again later." }]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [chatQuery, chatHistory, recommendedDomain]);
+    
+    // ---------------------------------------------------------------------
+    // 3. UI COMPONENTS
+    // ---------------------------------------------------------------------
+
+    const NavButton = ({ view, icon: Icon, label }) => (
+        <button
+            onClick={() => setCurrentView(view)}
+            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors w-full ${
+                currentView === view 
+                ? 'bg-blue-600 text-white shadow-lg' 
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+        >
+            <Icon size={20} />
+            <span className="text-xs mt-1 font-medium">{label}</span>
+        </button>
+    );
+
+    const Card = ({ title, children, icon: Icon }) => (
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 h-full">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+                {Icon && <Icon className="mr-2 text-blue-500" size={24} />}
+                {title}
+            </h2>
+            {children}
+        </div>
+    );
+
+    const ProgressBar = ({ percentage, label, colorClass }) => (
+        <div className="mb-4">
+            <div className="flex justify-between mb-1 text-sm font-medium">
+                <span>{label}</span>
+                <span className={colorClass}>{percentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                    className={`h-2.5 rounded-full ${colorClass} transition-all duration-500 ease-out`} 
+                    style={{ width: `${percentage}%` }}
+                ></div>
+            </div>
+        </div>
+    );
+
+    const ProfileView = () => (
+        <div className="grid md:grid-cols-2 gap-8">
+            {/* Input Card */}
+            <Card title="Student Profile Input" icon={Briefcase}>
+                <textarea
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    rows="10"
+                    placeholder="Paste your resume content, skill list, or academic summary here..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    disabled={isLoading}
+                />
+                <button
+                    onClick={handleAnalyzeProfile}
+                    className="mt-4 w-full bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors flex items-center justify-center"
+                    disabled={isLoading}
+                >
+                    {isLoading ? <Loader className="animate-spin mr-2" size={18} /> : <Zap size={18} className="mr-2" />}
+                    {isLoading ? 'Analyzing...' : 'Analyze Profile & Skills'}
+                </button>
+                {analysisResult && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium">
+                        <CheckCircle size={16} className="inline mr-2" />
+                        Analysis complete. Results are displayed in the right panel.
+                    </div>
+                )}
+            </Card>
+
+            {/* Analysis Results Card */}
+            <Card title="Career & Skill Gap Analysis" icon={GitBranch}>
+                {analysisResult ? (
+                    <div>
+                        <p className="text-lg font-bold mb-2 text-green-600">
+                            Recommended Career Domain: {recommendedDomain}
+                        </p>
+                        <ProgressBar 
+                            percentage={profileMatchPercentage} 
+                            label={`Profile Match Score (Target: ${recommendedDomain})`}
+                            colorClass={profileMatchPercentage > 75 ? 'bg-green-500' : (profileMatchPercentage > 50 ? 'bg-yellow-500' : 'bg-red-500')}
+                        />
+                        
+                        <h3 className="font-semibold mt-6 mb-2 text-gray-700">Identified Skill Gaps:</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {analysisResult.skill_gap_analysis?.missing_skills.length > 0 ? (
+                                analysisResult.skill_gap_analysis.missing_skills.map((skill, index) => (
+                                    <span key={index} className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-full border border-red-200">
+                                        {skill}
+                                    </span>
+                                ))
+                            ) : (
+                                <p className="text-sm text-gray-500">No major skill gaps identified for this domain!</p>
+                            )}
+                        </div>
+
+                        <h3 className="font-semibold mt-6 mb-2 text-gray-700">Required Skills for Role:</h3>
+                         <div className="flex flex-wrap gap-2">
+                            {analysisResult.skill_gap_analysis?.required_skills.map((skill, index) => (
+                                <span key={index} className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full border border-blue-200">
+                                    {skill}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-gray-500">Paste your profile information and click 'Analyze' to see personalized results.</p>
+                )}
+            </Card>
+        </div>
+    );
+
+    const InterviewView = () => (
+        <div className="grid md:grid-cols-2 gap-8">
+            {/* Input/Mock Card */}
+            <Card title="AI Interview Preparation" icon={Zap}>
+                <p className="font-semibold text-gray-700 mb-3">Mock Question (Focus: {recommendedDomain}):</p>
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4 text-sm italic">
+                    "Tell me about a challenging technical problem you solved using **{recommendedDomain}** methodologies, and how you ensured communication with your team."
+                </div>
+
+                <h3 className="font-semibold text-gray-700 mb-2">Your Transcribed Response:</h3>
+                <textarea
+                    value={interviewTranscript}
+                    onChange={(e) => setInterviewTranscript(e.target.value)}
+                    rows="8"
+                    placeholder="Type or paste your answer here for analysis..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    disabled={isLoading}
+                />
+                
+                <button
+                    onClick={handleMockInterview}
+                    className={`mt-4 w-full font-semibold py-2 rounded-lg transition-colors flex items-center justify-center ${
+                        !analysisResult ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-green-500 hover:bg-green-700 text-white'
+                    }`}
+                    disabled={isLoading || !analysisResult}
+                >
+                    {isLoading ? <Loader className="animate-spin mr-2" size={18} /> : <RefreshCcw size={18} className="mr-2" />}
+                    {isLoading ? 'Evaluating Interview...' : 'Evaluate Performance'}
+                </button>
+                 {!analysisResult && <p className="text-sm text-red-500 mt-2">Requires a completed profile analysis first.</p>}
+            </Card>
+
+            {/* Interview Results Card */}
+            <Card title="Interview Performance Feedback" icon={Zap}>
+                {interviewResult ? (
+                    <div className="space-y-4">
+                        <h3 className="text-2xl font-extrabold text-blue-600">
+                            Employability Score: {interviewResult.employability_score} / 100
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                            (Profile Match: {profileMatchPercentage}%, Interview Performance: {interviewResult.interview_score}%)
+                        </p>
+                        
+                        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <h4 className="font-bold text-yellow-700 flex items-center"><MessageCircle size={18} className="mr-2" /> Communication Analysis</h4>
+                            <p className="text-sm mt-1">**Sentiment:** {interviewResult.communication_analysis.sentiment}</p>
+                            <p className="text-sm">**Feedback:** {interviewResult.communication_analysis.clarity_feedback}</p>
+                        </div>
+                        
+                        <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                            <h4 className="font-bold text-red-700 flex items-center"><AlertTriangle size={18} className="mr-2" /> Non-Verbal (Facial Mock)</h4>
+                            <p className="text-sm mt-1">**Dominant Emotion:** {interviewResult.facial_analysis.emotions.dominant_emotion}</p>
+                            <p className="text-sm">**Feedback:** {interviewResult.facial_analysis.feedback}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-gray-500">Submit an answer to the mock question to receive real-time AI feedback on your performance and communication style.</p>
+                )}
+            </Card>
+        </div>
+    );
+
+    const MentorView = () => (
+        <div className="grid md:grid-cols-2 gap-8">
+            <Card title="Virtual Career Mentor" icon={MessageCircle}>
+                <div className="h-96 overflow-y-auto p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col space-y-3">
+                    {chatHistory.map((msg, index) => (
+                        <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-xs md:max-w-md p-3 rounded-xl shadow-md text-sm ${
+                                msg.type === 'user' 
+                                ? 'bg-blue-500 text-white rounded-br-none' 
+                                : 'bg-white text-gray-800 rounded-tl-none border border-gray-300'
+                            }`}>
+                                <p dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="p-3 bg-white text-gray-500 rounded-xl rounded-tl-none border border-gray-300 text-sm">
+                                <Loader className="animate-spin inline mr-2" size={14} /> Mentor is typing...
+                            </div>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="mt-4 flex">
+                    <input
+                        type="text"
+                        value={chatQuery}
+                        onChange={(e) => setChatQuery(e.target.value)}
+                        placeholder={recommendedDomain === 'Unknown' ? "Analyze your profile first to chat..." : `Ask about ${recommendedDomain} career path...`}
+                        className="flex-grow p-3 border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        disabled={isLoading || recommendedDomain === 'Unknown'}
+                        onKeyPress={(e) => e.key === 'Enter' && handleChatQuery()}
+                    />
+                    <button
+                        onClick={handleChatQuery}
+                        className={`px-4 rounded-r-lg text-white font-semibold flex items-center justify-center ${
+                            isLoading || recommendedDomain === 'Unknown' ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-700'
+                        }`}
+                        disabled={isLoading || recommendedDomain === 'Unknown'}
+                    >
+                        Send
+                    </button>
+                </div>
+            </Card>
+
+            <UniversityDashboardMock />
+        </div>
+    );
+    
+    // Placeholder for the University/Admin View
+    const UniversityDashboardMock = () => (
+         <Card title="University Batch Analytics (Mock)" icon={Zap}>
+            <div className="h-full space-y-4">
+                <p className="text-gray-600 mb-4">
+                    This administrative view would provide batch-level insights into student readiness, visible only to faculty/admin staff.
+                </p>
+                
+                <h4 className="font-bold text-gray-800">Key Metrics:</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                    <li>Average Employability Score: **78.5** (Goal: 85+)</li>
+                    <li>Top Skill Gap: **Cloud Computing (35% of batch)**</li>
+                    <li>Most Recommended Domain: **Software Development**</li>
+                    <li>Students Requiring Mentorship: **12%** (Score below 60)</li>
+                </ul>
+                
+                <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <p className="text-sm font-semibold text-indigo-700">Actionable Insight:</p>
+                    <p className="text-xs text-indigo-600">
+                        Recommend a mandatory workshop on **Cloud Computing** to bridge the largest batch-level skill gap.
+                    </p>
+                </div>
+            </div>
+        </Card>
+    );
+
+    // ---------------------------------------------------------------------
+    // 4. MAIN RENDER
+    // ---------------------------------------------------------------------
+    
+    let content;
+    if (currentView === 'profile') content = <ProfileView />;
+    else if (currentView === 'interview') content = <InterviewView />;
+    else if (currentView === 'mentor') content = <MentorView />;
+    else if (currentView === 'university') content = <UniversityDashboardMock />;
+
+    return (
+        <div className="min-h-screen bg-gray-50 font-sans">
+            <style>{`
+                /* Tailwind's assumed 'Inter' font replacement */
+                body { font-family: 'Inter', sans-serif; }
+            `}</style>
+            
+            <header className="bg-white shadow-md p-4 sticky top-0 z-10">
+                <div className="max-w-7xl mx-auto flex justify-between items-center">
+                    <h1 className="text-2xl font-extrabold text-blue-600">AI Career System</h1>
+                    <div className="flex space-x-3 bg-gray-100 p-2 rounded-xl">
+                        <NavButton view="profile" icon={Briefcase} label="Profile Analysis" />
+                        <NavButton view="interview" icon={Zap} label="Mock Interview" />
+                        <NavButton view="mentor" icon={MessageCircle} label="Virtual Mentor" />
+                        <NavButton view="university" icon={GitBranch} label="Univ. Dashboard" />
+                    </div>
+                </div>
+            </header>
+
+            <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                {error && (
+                    <div className="p-3 mb-6 bg-red-100 border border-red-400 text-red-700 rounded-lg font-medium flex items-center">
+                        <AlertTriangle size={20} className="mr-2" />
+                        API Error: {error}
+                    </div>
+                )}
+                {content}
+            </main>
+        </div>
+    );
+};
+
+export default App;

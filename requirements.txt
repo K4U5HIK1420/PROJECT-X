@@ -1,0 +1,15 @@
+Flask==3.0.0
+python-dotenv==1.0.0
+psycopg2-binary==2.9.9
+flask-cors # REQUIRED for resolving the "Failed to fetch" (CORS) error
+gunicorn # Good practice for production server deployment
+spacy==3.7.4
+PyPDF2==3.0.1
+pandas==2.1.4
+numpy==1.26.2
+scikit-learn==1.3.2
+joblib==1.3.2
+opencv-python-headless==4.8.1.78
+nltk==3.8.1
+requests==2.31.0
+tensorflow # Required for future Deep Learning models (Facial Rec/Emotion)
