@@ -18,13 +18,23 @@ except OSError as e:
 
 # Mock list of industry standard skills for matching
 MOCK_SKILLS = [
+    # --- Programming / Technical ---
     "Python", "Java", "SQL", "React", "TensorFlow", "scikit-learn",
     "NLP", "Machine Learning", "Deep Learning", "AWS", "Docker",
     "Data Science", "Cybersecurity", "Django", "PostgreSQL", "JavaScript",
     "R", "Pandas", "Matplotlib", "Linux", "Network Security", "Cryptography",
     "Keras", "CNNs", "REST APIs", "Statistical Analysis", "Cloud Computing",
-    "HTML", "CSS", "Visualization", "Penetration Testing"
+    "HTML", "CSS", "Visualization", "Penetration Testing",
+
+    # --- Digital Marketing Skills ---
+    "SEO", "Google Analytics", "Google Ads", "Facebook Ads",
+    "Email Marketing", "Content Creation", "Social Media", "Analytics",
+    "Campaign Management", "Instagram Marketing", "LinkedIn Marketing",
+
+    # --- Soft/General Skills (Optional) ---
+    "UI/UX", "Project Management", "Communication", "Teamwork"
 ]
+
 
 def extract_text_from_pdf(pdf_file_path: str) -> str:
     """MOCK: Extracts text from a PDF file."""
@@ -57,9 +67,18 @@ def simple_resume_parser(text: str) -> dict:
     text_lower = text.lower()
     
     for skill in MOCK_SKILLS:
-        # Simple check for the skill as a whole word
-        if re.search(r'\b' + re.escape(skill.lower()) + r'\b', text_lower):
-            found_skills.add(skill)
+        skill_lower = skill.lower()
+
+        # Multi-word skill handling (e.g., "google analytics", "content creation")
+        if " " in skill_lower:
+            # simple containment match
+            if skill_lower in text_lower:
+                found_skills.add(skill)
+        else:
+            # word-boundary match for single-word skills
+            if re.search(r'\b' + re.escape(skill_lower) + r'\b', text_lower):
+                found_skills.add(skill)
+
 
     # 3. Extract Summary/Profile (using rough heuristic)
     summary = "Cannot parse summary reliably yet."

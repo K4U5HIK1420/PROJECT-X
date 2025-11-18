@@ -27,6 +27,34 @@ MOCK_DATA = {
         ['Software Development']
     ]
 }
+# Simple rule-based labeler for domains not well covered by mock ML data
+def rule_based_domain(text: str) -> str:
+    t = text.lower()
+    # Digital Marketing keywords
+    marketing_keywords = [
+        "seo", "search engine", "google analytics", "google ads", "facebook ads",
+        "social media", "content marketing", "email marketing", "mailchimp",
+        "instagram", "linkedin", "campaign", "adwords", "ad campaigns", "marketing"
+    ]
+    if any(k in t for k in marketing_keywords):
+        return "Digital Marketing"
+
+    # Quick rule for frontend: keywords that indicate front-end work
+    frontend_keywords = ["react", "javascript", "html", "css", "tailwind", "material ui", "ui/ux", "frontend"]
+    if any(k in t for k in frontend_keywords):
+        return "Frontend Development"
+
+    # Quick rule for AI/ML/Data: keywords
+    ml_keywords = ["machine learning", "tensorflow", "scikit-learn", "deep learning", "cnn", "neural network", "keras"]
+    if any(k in t for k in ml_keywords):
+        return "AI/ML"
+
+    data_keywords = ["pandas", "dataframe", "statistical", "visualization", "tableau"]
+    if any(k in t for k in data_keywords):
+        return "Data Science"
+
+    # fallback
+    return None
 
 # --- 1. Career Domain Classification Model ---
 
@@ -54,25 +82,44 @@ class CareerClassifier:
     def predict_domain(self, text: str) -> list:
         """Predicts the best-fit career domains for a given profile text."""
         if not self.is_trained:
-            self.train_model() 
-        
+            self.train_model()
+
+        # 1) Try rule-based detection first (fast and reliable for missing classes)
+        rule_label = rule_based_domain(text)
+        if rule_label:
+            # return as list, so caller expects same type
+            return [rule_label]
+
+        # 2) Fall back to ML model
         text_vec = self.vectorizer.transform([text])
-        probabilities = self.classifier.predict_proba(text_vec)[0]
-        
-        # Identify labels that meet a low threshold (0.2) or take the single highest one
-        predicted_labels_indices = np.where(probabilities > 0.2)[0] 
-        
-        if len(predicted_labels_indices) == 0:
-            top_index = np.argmax(probabilities)
-            predicted_domains = self.mlb.classes_[top_index:top_index+1].tolist()
-        else:
-            predicted_domains = self.mlb.classes_[predicted_labels_indices].tolist()
+        probabilities = self.classifier.predict_proba(text_vec)[0]  # (n_classes,)
+
+        # OPTIONAL: debug print to console so you can see probabilities
+        try:
+            # This will print mapping of label -> prob to your server console
+            label_probs = {self.mlb.classes_[i]: float(probabilities[i]) for i in range(len(probabilities))}
+            print("Domain probabilities:", label_probs)
+        except Exception:
+            pass
+        sorted_indices = np.argsort(probabilities)[::-1]
+        best_index = sorted_indices[0]
+        best_domain = self.mlb.classes_[best_index]
+
+        # collect secondaries with a low threshold
+        threshold = 0.12
+        predicted_domains = [self.mlb.classes_[i] for i in sorted_indices if probabilities[i] >= threshold]
+        if best_domain not in predicted_domains:
+            predicted_domains.insert(0, best_domain)
 
         return predicted_domains
+
 
 # --- 2. Skill Gap Analyzer ---
 
 MOCK_JOB_REQUIREMENTS = {
+    "AI/ML": ["Python", "TensorFlow", "Deep Learning", "SQL", "Cloud Computing"],
+    "Software Development": ["Python", "Django", "PostgreSQL", "Docker", "REST APIs", "AWS"],
+    "Digital Marketing": ["SEO", "Google Analytics", "Google Ads", "Facebook Ads", "Email Marketing", "Content Creation", "Social Media", "Analytics"],
     "AI/ML Engineer": ["Python", "TensorFlow", "Deep Learning", "SQL", "Cloud Computing"],
     "Data Science": ["Python", "R", "Pandas", "Statistical Analysis", "SQL", "Visualization"],
     "Frontend Development": ["React", "JavaScript", "HTML", "CSS", "REST APIs"],

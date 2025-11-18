@@ -65,6 +65,9 @@ def analyze_profile():
     
     # 2. Career Domain Classification & Skill Gap Analysis
     predicted_domains = career_classifier.predict_domain(resume_text)
+    if not predicted_domains:
+        predicted_domains = ["Unknown"]
+
     gap_analysis = None
     profile_match_percentage = 0
     
@@ -81,40 +84,48 @@ def analyze_profile():
             
     
     # 3. Save/Update Data to DB (Slightly simplified for project scope)
-    conn = get_db_connection()
-    if conn:
-        try:
-            cur = conn.cursor()
-            user_id = 'test_user_123' # Hardcoded placeholder for now
-            
-            cur.execute(
-                sql.SQL("""
-                    INSERT INTO student_profiles (user_id, name, email, raw_resume_text, extracted_skills, profile_match_percentage) 
-                    VALUES (%s, %s, %s, %s, %s, %s) 
-                    ON CONFLICT (user_id) 
-                    DO UPDATE SET 
-                        raw_resume_text=EXCLUDED.raw_resume_text, 
-                        extracted_skills=EXCLUDED.extracted_skills,
-                        email=EXCLUDED.email,
-                        profile_match_percentage=EXCLUDED.profile_match_percentage
-                """),
-                [user_id, 'Dummy Student', parsed_data['email'], resume_text, student_skills, profile_match_percentage]
-            )
-            conn.commit()
-        except Exception as e:
-            # NOTE: If your student_profiles table doesn't have the 'profile_match_percentage' column yet, this will fail.
-            print(f"Error saving to DB (Check your table schema!): {e}")
-            conn.rollback()
-        finally:
-            if conn: conn.close()
+    # --- Disabled DB Save (DB not running right now) ---
+# conn = get_db_connection()
+# if conn:
+#     try:
+#         cur = conn.cursor()
+#         user_id = 'test_user_123'
+#         
+#         cur.execute(
+#             sql.SQL("""
+#                 INSERT INTO student_profiles (user_id, name, email, raw_resume_text, extracted_skills, profile_match_percentage) 
+#                 VALUES (%s, %s, %s, %s, %s, %s) 
+#                 ON CONFLICT (user_id) 
+#                 DO UPDATE SET 
+#                     raw_resume_text=EXCLUDED.raw_resume_text, 
+#                     extracted_skills=EXCLUDED.extracted_skills,
+#                     email=EXCLUDED.email,
+#                     profile_match_percentage=EXCLUDED.profile_match_percentage
+#             """),
+#             [user_id, 'Dummy Student', parsed_data['email'], resume_text, student_skills, profile_match_percentage]
+#         )
+#         conn.commit()
+#     except Exception as e:
+#         print(f"Error saving to DB (Check your table schema!): {e}")
+#         conn.rollback()
+#     finally:
+#         if conn: conn.close()
+
 
     return jsonify({
         "message": "Profile analyzed successfully.",
-        "student_data": parsed_data,
-        "career_recommendations": predicted_domains,
-        "skill_gap_analysis": gap_analysis,
-        "profile_match_percentage": profile_match_percentage
+        "student_data": parsed_data or {},
+        "career_recommendations": predicted_domains or [],
+        "skill_gap_analysis": gap_analysis or {
+            "missing_skills": [],
+            "matched_skills": [],
+            "completeness_percentage": 0,
+            "target_role": "Unknown",
+            "required_skills": []
+        },
+        "profile_match_percentage": profile_match_percentage or 0
     })
+
 
 @app.route('/api/v1/mock_interview', methods=['POST'])
 def mock_interview():
