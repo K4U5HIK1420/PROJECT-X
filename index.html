@@ -4,20 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Career System</title>
-    <!-- Load Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load React and ReactDOM (Development versions) -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <!-- Load Babel to process JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-gray-50">
-    <!-- The root element where React will render the App -->
     <div id="root"></div>
 
     <script type="text/babel" data-presets="env,react">
-        // 1. Core React Imports
+        // Core React Imports
         const { useState, useEffect, useCallback } = React;
 
         // --- API Configuration ---
@@ -25,9 +21,7 @@
 
         // --- Main App Component ---
         const App = () => {
-            // ---------------------------------------------------------------------
-            // 1. STATE MANAGEMENT
-            // ---------------------------------------------------------------------
+           
             const [resumeText, setResumeText] = useState('');
             const [analysisResult, setAnalysisResult] = useState(null);
             const [interviewTranscript, setInterviewTranscript] = useState('');
@@ -42,9 +36,7 @@
             const profileMatchPercentage = analysisResult?.profile_match_percentage || 0;
             const recommendedDomain = analysisResult?.career_recommendations?.[0] || 'Unknown';
 
-            // ---------------------------------------------------------------------
-            // 2. API FUNCTIONS (Calling the Python Backend)
-            // ---------------------------------------------------------------------
+            // API FUNCTIONS (Calling the Python Backend)
 
             const handleAnalyzeProfile = useCallback(async () => {
                 if (!resumeText.trim()) {
@@ -155,9 +147,7 @@
                 }
             }, [chatQuery, chatHistory, recommendedDomain]);
             
-            // ---------------------------------------------------------------------
-            // 3. UI COMPONENTS
-            // ---------------------------------------------------------------------
+            // UI COMPONENTS
 
             const NavButton = ({ view, label }) => (
                 <button
@@ -445,9 +435,7 @@
                 </Card>
             );
 
-            // ---------------------------------------------------------------------
-            // 4. MAIN RENDER
-            // ---------------------------------------------------------------------
+            // MAIN RENDER
             
             let content;
             if (currentView === 'profile') content = <ProfileView />;
@@ -488,7 +476,7 @@
             );
         };
         
-        // 5. Initial Render
+        // Initial Render
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
         root.render(<App />);
