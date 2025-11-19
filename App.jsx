@@ -1,15 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCcw, Briefcase, Zap, MessageCircle, GitBranch, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
 
-// --- MOCK API Configuration ---
-// In a real environment, this would be the address where your Flask server runs.
 const API_BASE_URL = 'http://127.0.0.1:5000/api/v1';
 
-// --- Main App Component ---
 const App = () => {
-    // ---------------------------------------------------------------------
-    // 1. STATE MANAGEMENT
-    // ---------------------------------------------------------------------
     const [resumeText, setResumeText] = useState('');
     const [analysisResult, setAnalysisResult] = useState(null);
     const [interviewTranscript, setInterviewTranscript] = useState('');
@@ -18,15 +12,10 @@ const App = () => {
     const [chatHistory, setChatHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [currentView, setCurrentView] = useState('profile'); // 'profile', 'interview', 'mentor', 'university'
+    const [currentView, setCurrentView] = useState('profile');
 
-    // Extracted values for ease of use
     const profileMatchPercentage = analysisResult?.profile_match_percentage || 0;
     const recommendedDomain = analysisResult?.career_recommendations?.[0] || 'Unknown';
-
-    // ---------------------------------------------------------------------
-    // 2. API FUNCTIONS (Calling the Python Backend)
-    // ---------------------------------------------------------------------
 
     const handleAnalyzeProfile = useCallback(async () => {
         if (!resumeText.trim()) {
@@ -130,10 +119,6 @@ const App = () => {
             setIsLoading(false);
         }
     }, [chatQuery, chatHistory, recommendedDomain]);
-    
-    // ---------------------------------------------------------------------
-    // 3. UI COMPONENTS
-    // ---------------------------------------------------------------------
 
     const NavButton = ({ view, icon: Icon, label }) => (
         <button
@@ -356,7 +341,6 @@ const App = () => {
         </div>
     );
     
-    // Placeholder for the University/Admin View
     const UniversityDashboardMock = () => (
          <Card title="University Batch Analytics (Mock)" icon={Zap}>
             <div className="h-full space-y-4">
@@ -395,10 +379,9 @@ const App = () => {
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
             <style>{`
-                /* Tailwind's assumed 'Inter' font replacement */
                 body { font-family: 'Inter', sans-serif; }
             `}</style>
-            
+
             <header className="bg-white shadow-md p-4 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <h1 className="text-2xl font-extrabold text-blue-600">AI Career System</h1>

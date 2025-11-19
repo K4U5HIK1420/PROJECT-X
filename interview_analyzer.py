@@ -1,106 +1,116 @@
-import cv2
-import numpy as np
-import time
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-import nltk
+import random
+import re
+from textblob import TextBlob
 
-# Download VADER lexicon if not already present
-try:
-    nltk.data.find('sentiment/vader_lexicon.zip')
-except LookupError:
-    # If the lexicon isn't found, download it.
-    # Note: This requires 'nltk' to be installed (which it is via requirements.txt)
-    nltk.download('vader_lexicon')
+def mock_facial_analysis(video_input_data=None):
+    facial_score = random.randint(70, 95)
 
-sia = SentimentIntensityAnalyzer()
+    if facial_score >= 90:
+        dominant_emotion = "Confident"
+        feedback = "Excellent eye contact and positive expressions."
+    elif facial_score >= 80:
+        dominant_emotion = "Slight Anxiety"
+        feedback = "Maintain strong eye contact. Dominant state was Slight Anxiety."
+    else:
+        dominant_emotion = "Nervous"
+        feedback = "Try to relax and smile more. Work on maintaining eye contact."
 
-# --- 1. Facial & Emotion Mock Analysis ---
-def mock_facial_analysis(video_input_data) -> dict:
-    """
-    MOCK function to simulate facial emotion and attention analysis.
-    
-    In a real application, this would process video frames using a
-    pre-trained deep learning model (e.g., using DeepFace or a custom CNN).
-    For the project demo, we return realistic placeholder values.
-    
-    Args:
-        video_input_data: Placeholder for a video stream or path.
-    """
-    # Simulate processing time
-    time.sleep(0.5) 
-    
-    # Simulate a distribution of detected emotions over a short interview period
-    emotions = {
-        "confidence": round(np.random.uniform(0.65, 0.95), 2),
-        "stress": round(np.random.uniform(0.05, 0.30), 2),
-        "attention": round(np.random.uniform(0.80, 0.98), 2),
-        "dominant_emotion": np.random.choice(["Neutral", "Concentration", "Slight Anxiety"])
-    }
-    
-    # Facial score is based on confidence metric
+    attention = round(random.uniform(0.8, 1.0), 2)
+    confidence = round(random.uniform(0.7, 0.95), 2)
+    stress = round(random.uniform(0.05, 0.2), 2)
+
     return {
-        "facial_score": int(emotions["confidence"] * 100),
-        "emotions": emotions,
-        "feedback": f"Maintain strong eye contact. Dominant state was {emotions['dominant_emotion']}."
+        "facial_score": facial_score,
+        "emotions": {
+            "attention": attention,
+            "confidence": confidence,
+            "dominant_emotion": dominant_emotion,
+            "stress": stress
+        },
+        "feedback": feedback
     }
 
-# --- 2. Communication and Sentiment Analysis (Voice/Text) ---
 def analyze_communication(transcript: str) -> dict:
-    """
-    Analyzes the transcribed response for sentiment, clarity, and pacing.
-    
-    In a real system, you would integrate a separate voice tone analysis
-    library (like Librosa/DeepSpeech to get pitch and speed).
-    """
-    if not transcript:
-        return {"score": 0, "sentiment": "Neutral", "clarity_feedback": "No response provided."}
+    if not transcript or len(transcript.strip()) == 0:
+        return {
+            "score": 0,
+            "clarity_feedback": "No transcript provided.",
+            "sentiment": "Neutral",
+            "sentiment_scores": {"compound": 0.0, "neg": 0.0, "neu": 1.0, "pos": 0.0}
+        }
 
-    # Analyze sentiment using VADER
-    vs = sia.polarity_scores(transcript)
-    
-    # Calculate a mock communication score based on positive sentiment
-    comm_score = int(vs['compound'] * 50 + 50) # Scale compound score (-1 to 1) to (0 to 100)
-    
-    # Mock analysis for pacing and clarity 
-    word_count = len(transcript.split())
-    clarity_feedback = "Vocabulary usage was clear and professional."
-    if word_count < 10:
-        clarity_feedback = "Response was too brief; try to elaborate more on your points."
-    elif word_count > 50:
-        clarity_feedback = "Ensure brevity and focus on key points. The answer was slightly long-winded."
-        
+    blob = TextBlob(transcript)
+    polarity = blob.sentiment.polarity
+    subjectivity = blob.sentiment.subjectivity
+
+    if polarity > 0.1:
+        sentiment = "Positive"
+    elif polarity < -0.1:
+        sentiment = "Negative"
+    else:
+        sentiment = "Neutral"
+
+    sentences = re.split(r'[.!?]+', transcript)
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences) if sentences else 0
+
+    filler_words = ["um", "uh", "like", "you know", "so", "well"]
+    filler_count = sum(transcript.lower().count(word) for word in filler_words)
+
+    words = re.findall(r'\b\w+\b', transcript.lower())
+    unique_words = set(words)
+    vocab_diversity = len(unique_words) / len(words) if words else 0
+
+    sentiment_score = max(0, (polarity + 1) * 50)
+    length_score = max(0, 100 - abs(avg_sentence_length - 15) * 5)
+    filler_score = max(0, 100 - filler_count * 10)
+    vocab_score = min(100, vocab_diversity * 200)
+
+    overall_score = int((sentiment_score + length_score + filler_score + vocab_score) / 4)
+    overall_score = min(100, max(0, overall_score))
+
+    if overall_score >= 85:
+        clarity_feedback = "Excellent communication skills. Clear, confident, and engaging."
+    elif overall_score >= 70:
+        clarity_feedback = "Good communication. Vocabulary usage was clear and professional."
+    elif overall_score >= 50:
+        clarity_feedback = "Average communication. Work on reducing fillers and improving sentence structure."
+    else:
+        clarity_feedback = "Needs improvement. Practice speaking clearly and confidently."
+
     return {
-        "score": min(100, max(0, comm_score)),
-        "sentiment": "Positive" if vs['compound'] > 0.1 else ("Negative" if vs['compound'] < -0.1 else "Neutral"),
+        "score": overall_score,
         "clarity_feedback": clarity_feedback,
-        "sentiment_scores": vs
+        "sentiment": sentiment,
+        "sentiment_scores": {
+            "compound": polarity,
+            "neg": 0.0,
+            "neu": 1 - abs(polarity),
+            "pos": max(0, polarity)
+        }
     }
 
-# --- 3. Overall Employability Score Integration ---
-def calculate_employability_score(profile_match: float, interview_score: int) -> int:
-    """
-    Combines profile match (skill gap) and interview performance into a single score.
-    """
-    # Simple weighted average: 60% Profile Match, 40% Interview Performance
-    final_score = (profile_match * 0.6) + (interview_score * 0.4)
-    return int(round(final_score, 0))
+def calculate_employability_score(profile_match_percentage: float, interview_score: int) -> int:
+    if profile_match_percentage < 0 or profile_match_percentage > 100:
+        raise ValueError("Profile match percentage must be between 0 and 100.")
+    if interview_score < 0 or interview_score > 100:
+        raise ValueError("Interview score must be between 0 and 100.")
+
+    profile_weight = 0.6
+    interview_weight = 0.4
+
+    employability_score = (profile_match_percentage * profile_weight) + (interview_score * interview_weight)
+
+    return int(round(employability_score, 0))
 
 if __name__ == '__main__':
-    # Test Communication Analysis
-    test_transcript_positive = "I am highly motivated, confident, and excited to tackle challenging problems with my team. This role perfectly aligns with my career goals."
-    test_transcript_negative = "The past project was difficult, and I felt stressed and somewhat uncertain about the final outcome, but I managed."
-    
-    print("--- Test Communication Analysis (Positive) ---")
-    print(analyze_communication(test_transcript_positive))
-    
-    print("\n--- Test Communication Analysis (Negative) ---")
-    print(analyze_communication(test_transcript_negative))
-    
-    # Test Employability Score
-    mock_profile_match = 85.0
-    mock_combined_interview_score = 78 
-    
-    final_score = calculate_employability_score(mock_profile_match, mock_combined_interview_score)
-    print(f"\n--- Employability Score ---")
-    print(f"Profile Match: {mock_profile_match}%, Interview Performance: {mock_combined_interview_score}")
-    print(f"Final Employability Score: {final_score}")
+    facial = mock_facial_analysis()
+    print(facial)
+
+    test_transcript = "I am excited about this opportunity. I have experience in Python and machine learning. Um, I think I can contribute a lot to the team."
+    comm = analyze_communication(test_transcript)
+    print(comm)
+
+    score = calculate_employability_score(85.0, 78)
+    print(f"Employability Score: {score}")
