@@ -377,13 +377,13 @@ const App = () => {
     else if (currentView === 'university') content = <UniversityDashboardMock />;
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans">
+        <div className="min-h-screen bg-yellow-100 font-sans w-full">
             <style>{`
                 body { font-family: 'Inter', sans-serif; }
             `}</style>
 
-            <header className="bg-white shadow-md p-4 sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <header className="bg-white shadow-md p-4 sticky top-0 z-10 w-full">
+                <div className="flex justify-between items-center">
                     <h1 className="text-2xl font-extrabold text-blue-600">AI Career System</h1>
                     <div className="flex space-x-3 bg-gray-100 p-2 rounded-xl">
                         <NavButton view="profile" icon={Briefcase} label="Profile Analysis" />
@@ -394,7 +394,7 @@ const App = () => {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <main className="p-4 sm:p-6 lg:p-8 w-full">
                 {error && (
                     <div className="p-3 mb-6 bg-red-100 border border-red-400 text-red-700 rounded-lg font-medium flex items-center">
                         <AlertTriangle size={20} className="mr-2" />
