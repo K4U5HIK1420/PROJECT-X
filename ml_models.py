@@ -145,6 +145,25 @@ def virtual_mentor_response(
     intro = f"As your Virtual Career Mentor for **{domain}**, here’s my honest guidance:\n\n"
 
     # -------------------------------
+    # Career Roadmap (NEW)
+    # -------------------------------
+    if any(k in query for k in ["roadmap", "career path", "step by step", "plan"]):
+        roadmap = generate_career_roadmap(domain, employability_score, missing_skills)
+
+        response = f"Here’s a **step-by-step career roadmap for {domain}** 👇\n\n"
+        response += f"🎯 Current Level: **{roadmap['current_level']}**\n\n"
+
+        for phase in roadmap["roadmap"]:
+            response += f"🔹 **{phase['phase']}**\n"
+            response += "Focus:\n"
+            for item in phase["focus"]:
+                response += f"• {item}\n"
+            response += f"Goal: {phase['goal']}\n\n"
+
+        response += "Follow this sequentially — don’t rush phases."
+        return response
+
+    # -------------------------------
     # Learning / Courses
     # -------------------------------
     if any(k in query for k in ["learn", "study", "course", "next", "skill"]):
@@ -225,5 +244,64 @@ def virtual_mentor_response(
         "• Career roadmap\n\n"
         "Ask freely — that’s how growth happens."
     )
+
+
+def generate_career_roadmap(domain: str, employability_score: float, missing_skills: list):
+    
+    # Determine level
+    if employability_score >= 85:
+        level = "Job-Ready"
+    elif employability_score >= 65:
+        level = "Intermediate"
+    else:
+        level = "Beginner"
+
+    roadmap = []
+
+    # Phase 1: Foundations
+    roadmap.append({
+        "phase": "Phase 1: Strengthen Fundamentals",
+        "focus": missing_skills[:3] if missing_skills else ["Core concepts review"],
+        "goal": "Build strong conceptual clarity"
+    })
+
+    # Phase 2: Projects
+    roadmap.append({
+        "phase": "Phase 2: Project Building",
+        "focus": [
+            f"Build 2 real-world projects in {domain}",
+            "Use GitHub with clean README",
+            "Apply best practices"
+        ],
+        "goal": "Demonstrate practical ability"
+    })
+
+    # Phase 3: Interview Prep
+    roadmap.append({
+        "phase": "Phase 3: Interview Preparation",
+        "focus": [
+            "Explain projects end-to-end",
+            "Practice technical + HR questions",
+            "Mock interviews"
+        ],
+        "goal": "Improve confidence and communication"
+    })
+
+    # Phase 4: Job Readiness
+    roadmap.append({
+        "phase": "Phase 4: Job Readiness",
+        "focus": [
+            "Optimize resume for ATS",
+            "Apply consistently",
+            "Network on LinkedIn"
+        ],
+        "goal": "Convert skills into opportunities"
+    })
+
+    return {
+        "domain": domain,
+        "current_level": level,
+        "roadmap": roadmap
+    }
 
 

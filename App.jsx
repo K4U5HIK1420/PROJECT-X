@@ -294,15 +294,27 @@ const App = () => {
     const MentorView = () => (
         <div className="grid md:grid-cols-2 gap-8">
             <Card title="Virtual Career Mentor" icon={MessageCircle}>
+                <div className="flex items-center mb-3 text-sm text-gray-600">
+                    <MessageCircle size={16} className="mr-2 text-blue-500" />
+                    <span className="font-semibold text-blue-600">Virtual Career Mentor</span>
+                </div>
                 <div className="h-96 overflow-y-auto p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col space-y-3">
                     {chatHistory.map((msg, index) => (
                         <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-xs md:max-w-md p-3 rounded-xl shadow-md text-sm ${
                                 msg.type === 'user' 
                                 ? 'bg-blue-500 text-white rounded-br-none' 
-                                : 'bg-white text-gray-800 rounded-tl-none border border-gray-300'
+                                : 'bg-white text-gray-800 rounded-tl-none border border-gray-300 shadow-sm'
                             }`}>
-                                <p dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                                <div
+                                    className="space-y-1"
+                                    dangerouslySetInnerHTML={{
+                                        __html: msg.text
+                                            .replace(/\n/g, '<br/>')
+                                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                            .replace(/Phase \d:/g, '<span class="font-semibold text-blue-600">$&</span>')
+                                    }}
+                                />
                             </div>
                         </div>
                     ))}
@@ -320,7 +332,11 @@ const App = () => {
                         type="text"
                         value={chatQuery}
                         onChange={(e) => setChatQuery(e.target.value)}
-                        placeholder={recommendedDomain === 'Unknown' ? "Analyze your profile first to chat..." : `Ask about ${recommendedDomain} career path...`}
+                        placeholder={
+                            recommendedDomain === 'Unknown'
+                            ? "Analyze your profile first to chat..."
+                            : `Ask your mentor about ${recommendedDomain}, roadmap, interviews…`
+                        }
                         className="flex-grow p-3 border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
                         disabled={isLoading || recommendedDomain === 'Unknown'}
                         onKeyPress={(e) => e.key === 'Enter' && handleChatQuery()}
@@ -377,7 +393,7 @@ const App = () => {
     else if (currentView === 'university') content = <UniversityDashboardMock />;
 
     return (
-        <div className="min-h-screen bg-yellow-100 font-sans w-full">
+        <div className="min-h-screen bg-gray-100 font-sans w-full">
             <style>{`
                 body { font-family: 'Inter', sans-serif; }
             `}</style>
