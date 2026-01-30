@@ -124,29 +124,87 @@ def analyze_skill_gap(required_skills: list, student_skills: list) -> dict:
         "completeness_percentage": round(completeness_percentage, 1)
     }
 
-def virtual_mentor_response(query: str, domain: str) -> str:
+def virtual_mentor_response(
+    query: str,
+    domain: str,
+    employability_score: float = 0,
+    missing_skills: list = None
+) -> str:
+
     query_lower = query.lower()
+    missing_skills = missing_skills or []
 
-    key_tech = MOCK_JOB_REQUIREMENTS.get(domain, ['key technologies'])[0]
-
-    if "study next" in query_lower or "course" in query_lower or "certifications" in query_lower:
-        return f"Since your profile aligns with **{domain}**, I strongly recommend focusing on advanced courses in **{key_tech}**. Look into specialized certifications or online learning paths on platforms like Coursera/Udemy to fill those gaps."
-
-    elif "job market" in query_lower or "salary" in query_lower:
-        return f"The job market for **{domain}** is experiencing high demand. To stand out, ensure you have a strong project portfolio showcasing skills in {key_tech}. This will significantly increase your appeal to top recruiters."
-
-    elif "interview" in query_lower or "prepare" in query_lower:
-        return f"To prepare for **{domain}** interviews, focus on mastering technical concepts related to **{key_tech}** and practicing behavioral questions. Remember to maintain strong confidence and clarity, as noted in your mock session."
-
-    elif "alumni" in query_lower or "mentor" in query_lower:
-        return "Connecting with alumni is crucial! I suggest filtering your university's alumni network to find professionals currently working as a **{domain}** expert and asking them for a brief informational interview."
-
+    # Determine user level
+    if employability_score >= 85:
+        level = "job-ready"
+    elif employability_score >= 65:
+        level = "intermediate"
     else:
-        return f"That's a great question! As your Virtual Mentor, I'm here to guide you. Try asking about your next learning steps, potential salary, or how to improve your interview skills for your target domain: **{domain}**."
+        level = "beginner"
 
-if __name__ == '__main__':
-    classifier = CareerClassifier()
-    classifier.train_model()
+    # ------------------------------
+    # Learning / Courses
+    # ------------------------------
+    if any(k in query_lower for k in ["study", "learn", "course", "certification", "next"]):
+        if missing_skills:
+            return (
+                f"You are currently at a **{level}** level for **{domain}**.\n\n"
+                f"To improve your profile, focus on these priority skills:\n"
+                f"• " + ", ".join(missing_skills[:3]) + "\n\n"
+                "Once comfortable, apply them in 1–2 real-world projects."
+            )
+        else:
+            return (
+                f"Your skill alignment for **{domain}** is strong.\n\n"
+                "Next steps:\n"
+                "• Advanced projects\n"
+                "• Mock interviews\n"
+                "• Open-source or internship experience"
+            )
 
-    response = virtual_mentor_response("What course should I study next?", "Data Science")
-    print(f"Mentor: {response}")
+    # ------------------------------
+    # Interview Preparation
+    # ------------------------------
+    if any(k in query_lower for k in ["interview", "prepare", "confidence"]):
+        return (
+            f"For **{domain}** interviews:\n\n"
+            "• Revise fundamentals\n"
+            "• Be ready to explain your projects clearly\n"
+            "• Practice behavioral questions (STAR method)\n\n"
+            "Mock interviews will help you improve consistency."
+        )
+
+    # ------------------------------
+    # Jobs / Salary / Market
+    # ------------------------------
+    if any(k in query_lower for k in ["job", "salary", "market", "hiring"]):
+        return (
+            f"The job market for **{domain}** is active.\n\n"
+            "To stand out:\n"
+            "• Maintain a strong GitHub\n"
+            "• Optimize your resume for ATS\n"
+            "• Apply consistently, not randomly"
+        )
+
+    # ------------------------------
+    # Motivation / Confusion
+    # ------------------------------
+    if any(k in query_lower for k in ["confused", "lost", "direction", "stuck"]):
+        return (
+            "Feeling confused is normal.\n\n"
+            "Focus on ONE domain, ONE roadmap, and ONE project at a time.\n"
+            "Consistency beats intensity."
+        )
+
+    # ------------------------------
+    # Default fallback
+    # ------------------------------
+    return (
+        f"I’m your Virtual Career Mentor for **{domain}**.\n\n"
+        "You can ask me about:\n"
+        "• What to learn next\n"
+        "• Interview preparation\n"
+        "• Job readiness\n"
+        "• Career roadmap"
+    )
+

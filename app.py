@@ -112,7 +112,13 @@ def mentor_chat():
     query = data['query']
     domain = data['domain']
 
-    response = virtual_mentor_response(query, domain)
+    response = virtual_mentor_response(
+    query=query,
+    domain=domain,
+    employability_score=data.get("employability_score", 0),
+    missing_skills=data.get("missing_skills", [])
+)
+
 
     return jsonify({
         "mentor_response": response
