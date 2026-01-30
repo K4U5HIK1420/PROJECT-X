@@ -131,10 +131,10 @@ def virtual_mentor_response(
     missing_skills: list = None
 ) -> str:
 
-    query_lower = query.lower()
+    query = query.lower()
     missing_skills = missing_skills or []
 
-    # Determine user level
+    # Determine confidence level
     if employability_score >= 85:
         level = "job-ready"
     elif employability_score >= 65:
@@ -142,69 +142,88 @@ def virtual_mentor_response(
     else:
         level = "beginner"
 
-    # ------------------------------
+    intro = f"As your Virtual Career Mentor for **{domain}**, here’s my honest guidance:\n\n"
+
+    # -------------------------------
     # Learning / Courses
-    # ------------------------------
-    if any(k in query_lower for k in ["study", "learn", "course", "certification", "next"]):
+    # -------------------------------
+    if any(k in query for k in ["learn", "study", "course", "next", "skill"]):
         if missing_skills:
             return (
-                f"You are currently at a **{level}** level for **{domain}**.\n\n"
-                f"To improve your profile, focus on these priority skills:\n"
-                f"• " + ", ".join(missing_skills[:3]) + "\n\n"
-                "Once comfortable, apply them in 1–2 real-world projects."
+                intro +
+                f"You’re currently at an **{level}** stage.\n\n"
+                f"Your biggest growth opportunity right now is:\n"
+                f"👉 **" + ", ".join(missing_skills[:3]) + "**\n\n"
+                "My advice:\n"
+                "• Pick ONE skill and go deep\n"
+                "• Build a small but real project\n"
+                "• Document what you learn (GitHub / notes)\n\n"
+                "This approach compounds fast."
             )
         else:
             return (
-                f"Your skill alignment for **{domain}** is strong.\n\n"
-                "Next steps:\n"
+                intro +
+                "Your skill alignment is already strong 👍\n\n"
+                "Now focus on:\n"
                 "• Advanced projects\n"
                 "• Mock interviews\n"
-                "• Open-source or internship experience"
+                "• System design & real-world scenarios\n\n"
+                "You’re closer than you think."
             )
 
-    # ------------------------------
+    # -------------------------------
     # Interview Preparation
-    # ------------------------------
-    if any(k in query_lower for k in ["interview", "prepare", "confidence"]):
+    # -------------------------------
+    if any(k in query for k in ["interview", "prepare", "confidence"]):
         return (
-            f"For **{domain}** interviews:\n\n"
-            "• Revise fundamentals\n"
-            "• Be ready to explain your projects clearly\n"
-            "• Practice behavioral questions (STAR method)\n\n"
-            "Mock interviews will help you improve consistency."
+            intro +
+            "Interview success comes down to clarity, not memorization.\n\n"
+            "Focus on:\n"
+            "• Explaining your projects end-to-end\n"
+            "• Why you made certain design choices\n"
+            "• Common mistakes & what you learned\n\n"
+            "Mock interviews + self-review = confidence."
         )
 
-    # ------------------------------
-    # Jobs / Salary / Market
-    # ------------------------------
-    if any(k in query_lower for k in ["job", "salary", "market", "hiring"]):
+    # -------------------------------
+    # Jobs / Market / Salary
+    # -------------------------------
+    if any(k in query for k in ["job", "salary", "market", "hiring"]):
         return (
-            f"The job market for **{domain}** is active.\n\n"
-            "To stand out:\n"
-            "• Maintain a strong GitHub\n"
-            "• Optimize your resume for ATS\n"
-            "• Apply consistently, not randomly"
+            intro +
+            f"The job market for **{domain}** is competitive, but fair.\n\n"
+            "What actually works:\n"
+            "• Strong fundamentals\n"
+            "• 2–3 solid projects\n"
+            "• A clean, honest resume\n\n"
+            "Avoid chasing trends blindly — consistency wins."
         )
 
-    # ------------------------------
-    # Motivation / Confusion
-    # ------------------------------
-    if any(k in query_lower for k in ["confused", "lost", "direction", "stuck"]):
+    # -------------------------------
+    # Confusion / Motivation
+    # -------------------------------
+    if any(k in query for k in ["confused", "lost", "stuck", "direction"]):
         return (
-            "Feeling confused is normal.\n\n"
-            "Focus on ONE domain, ONE roadmap, and ONE project at a time.\n"
-            "Consistency beats intensity."
+            intro +
+            "Feeling confused is normal — it means you care.\n\n"
+            "Here’s how to reset:\n"
+            "• Pick ONE domain\n"
+            "• Pick ONE roadmap\n"
+            "• Pick ONE project\n\n"
+            "Progress beats perfection. Keep moving."
         )
 
-    # ------------------------------
+    # -------------------------------
     # Default fallback
-    # ------------------------------
+    # -------------------------------
     return (
-        f"I’m your Virtual Career Mentor for **{domain}**.\n\n"
+        intro +
         "You can ask me about:\n"
         "• What to learn next\n"
         "• Interview preparation\n"
         "• Job readiness\n"
-        "• Career roadmap"
+        "• Career roadmap\n\n"
+        "Ask freely — that’s how growth happens."
     )
+
 
