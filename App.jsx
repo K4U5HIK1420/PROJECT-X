@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCcw, Briefcase, Zap, MessageCircle, GitBranch, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+import { useRef } from "react";
+
 
 const API_BASE_URL = 'http://127.0.0.1:5000/api/v1';
 
 const App = () => {
     const [resumeText, setResumeText] = useState('');
     const [analysisResult, setAnalysisResult] = useState(null);
-    const [interviewTranscript, setInterviewTranscript] = useState('');
     const [interviewResult, setInterviewResult] = useState(null);
     const [chatQuery, setChatQuery] = useState('');
     const [chatHistory, setChatHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [currentView, setCurrentView] = useState('profile');
-
     const profileMatchPercentage = analysisResult?.profile_match_percentage || 0;
     const recommendedDomain = analysisResult?.career_recommendations?.[0] || 'Unknown';
-
     const handleAnalyzeProfile = useCallback(async () => {
         if (!resumeText.trim()) {
             setError("Please paste a resume or skill summary to analyze.");
@@ -25,7 +24,6 @@ const App = () => {
         setIsLoading(true);
         setError(null);
         setAnalysisResult(null);
-
         try {
             const response = await fetch(`${API_BASE_URL}/analyze_profile`, {
                 method: 'POST',
@@ -47,41 +45,6 @@ const App = () => {
             setIsLoading(false);
         }
     }, [resumeText]);
-
-    const handleMockInterview = useCallback(async () => {
-        if (!interviewTranscript.trim()) {
-            setError("Please provide a transcribed response for the mock interview.");
-            return;
-        }
-        if (!analysisResult) {
-            setError("Please analyze your profile first.");
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/mock_interview`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transcript: interviewTranscript,
-                    profile_match_percentage: profileMatchPercentage
-                }),
-            });
-
-            if (!response.ok) throw new Error("Mock interview analysis failed.");
-            
-            const data = await response.json();
-            setInterviewResult(data);
-        } catch (err) {
-            console.error("Interview Error:", err);
-            setError(`Failed to process interview. Error: ${err.message}`);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [interviewTranscript, analysisResult, profileMatchPercentage]);
 
     const handleChatQuery = useCallback(async () => {
         if (!chatQuery.trim()) return;
@@ -229,67 +192,158 @@ const App = () => {
         </div>
     );
 
-    const InterviewView = () => (
-        <div className="grid md:grid-cols-2 gap-8">
-            {/* Input/Mock Card */}
-            <Card title="AI Interview Preparation" icon={Zap}>
-                <p className="font-semibold text-gray-700 mb-3">Mock Question (Focus: {recommendedDomain}):</p>
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4 text-sm italic">
-                    "Tell me about a challenging technical problem you solved using **{recommendedDomain}** methodologies, and how you ensured communication with your team."
-                </div>
+    // ---------------- INTERVIEW VIEW (STEP 1: UI FLOW ONLY) ----------------
+// ---------------- INTERVIEW VIEW (PHASE-BASED MOCK INTERVIEW) ----------------
+const InterviewView = () => {
+    const [phase, setPhase] = useState("idle");
+    // idle | live | ended | result
 
-                <h3 className="font-semibold text-gray-700 mb-2">Your Transcribed Response:</h3>
-                <textarea
-                    value={interviewTranscript}
-                    onChange={(e) => setInterviewTranscript(e.target.value)}
-                    rows="8"
-                    placeholder="Type or paste your answer here for analysis..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    disabled={isLoading}
-                />
-                
-                <button
-                    onClick={handleMockInterview}
-                    className={`mt-4 w-full font-semibold py-2 rounded-lg transition-colors flex items-center justify-center ${
-                        !analysisResult ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-green-500 hover:bg-green-700 text-white'
-                    }`}
-                    disabled={isLoading || !analysisResult}
-                >
-                    {isLoading ? <Loader className="animate-spin mr-2" size={18} /> : <RefreshCcw size={18} className="mr-2" />}
-                    {isLoading ? 'Evaluating Interview...' : 'Evaluate Performance'}
-                </button>
-                 {!analysisResult && <p className="text-sm text-red-500 mt-2">Requires a completed profile analysis first.</p>}
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const recordedChunksRef = useRef([]);
+
+    const [videoURL, setVideoURL] = useState(null);
+
+    const interviewQuestions = [
+        "Tell me about a challenging technical problem you solved.",
+        "How do you handle deadlines and pressure?",
+        "Describe a conflict you faced while working in a team."
+    ];
+
+    // 🎥 START INTERVIEW
+    const startInterview = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+
+            streamRef.current = stream;
+            videoRef.current.srcObject = stream;
+
+            const recorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = recorder;
+            recordedChunksRef.current = [];
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+            };
+
+            recorder.start();
+            setPhase("live");
+        } catch (err) {
+            alert("Camera or microphone permission denied.");
+        }
+    };
+
+    // ⏹ END INTERVIEW
+    const endInterview = () => {
+        mediaRecorderRef.current?.stop();
+        streamRef.current?.getTracks().forEach(track => track.stop());
+
+        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+        setVideoURL(URL.createObjectURL(blob));
+        setPhase("ended");
+    };
+
+    // 📤 SEND VIDEO TO BACKEND
+    const evaluatePerformance = async () => {
+        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+
+        const formData = new FormData();
+        formData.append("video", blob, "interview.webm");
+
+        await fetch(`${API_BASE_URL}/upload_interview`, {
+            method: "POST",
+            body: formData
+        });
+
+        setPhase("result");
+    };
+
+    return (
+        <div className="grid md:grid-cols-2 gap-8">
+
+            {/* LEFT PANEL */}
+            <Card title="AI Mock Interview" icon={Zap}>
+
+                {phase === "idle" && (
+                    <button
+                        onClick={startInterview}
+                        className="w-full bg-blue-600 text-white py-3 rounded-lg"
+                    >
+                        🎥 Start Mock Interview
+                    </button>
+                )}
+
+                {phase === "live" && (
+                    <>
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-64 rounded-lg border mb-4 bg-black"
+                        />
+
+                        <div className="bg-gray-50 border rounded-lg p-4 mb-4">
+                            <p className="font-semibold mb-2">Interview Questions:</p>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                                {interviewQuestions.map((q, i) => (
+                                    <li key={i}>{q}</li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <button
+                            onClick={endInterview}
+                            className="w-full bg-red-500 text-white py-2 rounded-lg"
+                        >
+                            ⏹ End Interview
+                        </button>
+                    </>
+                )}
+
+                {phase === "ended" && (
+                    <>
+                        <video
+                            src={videoURL}
+                            controls
+                            className="w-full rounded-lg border mb-4"
+                        />
+
+                        <button
+                            onClick={evaluatePerformance}
+                            className="w-full bg-green-600 text-white py-2 rounded-lg"
+                        >
+                            ✅ Evaluate Performance
+                        </button>
+                    </>
+                )}
             </Card>
 
-            {/* Interview Results Card */}
+            {/* RIGHT PANEL */}
             <Card title="Interview Performance Feedback" icon={Zap}>
-                {interviewResult ? (
-                    <div className="space-y-4">
-                        <h3 className="text-2xl font-extrabold text-blue-600">
-                            Employability Score: {interviewResult.employability_score} / 100
+                {phase === "result" && interviewResult ? (
+                    <>
+                        <h3 className="text-2xl font-bold text-blue-600 mb-2">
+                            Employability Score: {interviewResult.employability_score}
                         </h3>
-                        <p className="text-sm text-gray-600">
-                            (Profile Match: {profileMatchPercentage}%, Interview Performance: {interviewResult.interview_score}%)
-                        </p>
-                        
-                        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                            <h4 className="font-bold text-yellow-700 flex items-center"><MessageCircle size={18} className="mr-2" /> Communication Analysis</h4>
-                            <p className="text-sm mt-1">**Sentiment:** {interviewResult.communication_analysis.sentiment}</p>
-                            <p className="text-sm">**Feedback:** {interviewResult.communication_analysis.clarity_feedback}</p>
-                        </div>
-                        
-                        <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                            <h4 className="font-bold text-red-700 flex items-center"><AlertTriangle size={18} className="mr-2" /> Non-Verbal (Facial Mock)</h4>
-                            <p className="text-sm mt-1">**Dominant Emotion:** {interviewResult.facial_analysis.emotions.dominant_emotion}</p>
-                            <p className="text-sm">**Feedback:** {interviewResult.facial_analysis.feedback}</p>
-                        </div>
-                    </div>
+                        <p><strong>Sentiment:</strong> {interviewResult.communication_analysis.sentiment}</p>
+                        <p><strong>Dominant Emotion:</strong> {interviewResult.facial_analysis.emotions.dominant_emotion}</p>
+                        <p className="mt-2">{interviewResult.facial_analysis.feedback}</p>
+                    </>
                 ) : (
-                    <p className="text-gray-500">Submit an answer to the mock question to receive real-time AI feedback on your performance and communication style.</p>
+                    <p className="text-gray-500">
+                        Start a mock interview to see AI feedback here.
+                    </p>
                 )}
             </Card>
         </div>
     );
+};
+
+
 
     const MentorView = () => (
         <div className="grid md:grid-cols-2 gap-8">
@@ -386,11 +440,12 @@ const App = () => {
     // 4. MAIN RENDER
     // ---------------------------------------------------------------------
     
-    let content;
-    if (currentView === 'profile') content = <ProfileView />;
-    else if (currentView === 'interview') content = <InterviewView />;
-    else if (currentView === 'mentor') content = <MentorView />;
-    else if (currentView === 'university') content = <UniversityDashboardMock />;
+        let content;
+            if (currentView === 'profile') content = <ProfileView />;
+            else if (currentView === 'interview') content = <InterviewView />;
+            else if (currentView === 'mentor') content = <MentorView />;
+            else if (currentView === 'university') content = <UniversityDashboardMock />;
+
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans w-full">
@@ -422,5 +477,4 @@ const App = () => {
         </div>
     );
 };
-
 export default App;

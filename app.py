@@ -13,6 +13,36 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+@app.route("/api/v1/mock_facial_interview", methods=["POST"])
+def mock_facial_interview():
+    if "video" not in request.files:
+        return jsonify({"error": "No video file received"}), 400
+
+    video = request.files["video"]
+
+    # Optional: save video temporarily
+    save_path = "uploaded_interview.webm"
+    video.save(save_path)
+
+    # ---- MOCK ANALYSIS (replace later with real ML) ----
+    response = {
+        "employability_score": 72,
+        "interview_score": 68,
+        "communication_analysis": {
+            "sentiment": "Positive",
+            "clarity_feedback": "Good clarity, but try to structure answers better."
+        },
+        "facial_analysis": {
+            "emotions": {
+                "dominant_emotion": "Confident"
+            },
+            "feedback": "Maintained eye contact and calm expressions."
+        }
+    }
+
+    return jsonify(response)
+
+
 career_classifier = CareerClassifier()
 career_classifier.train_model()
 
