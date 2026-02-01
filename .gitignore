@@ -3,6 +3,7 @@ Python
 pycache/
 *.py[cod]
 *$py.class
+*.webm
 
 Virtual Environment
 
