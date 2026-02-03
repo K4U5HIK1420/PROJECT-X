@@ -1,1 +1,28 @@
 node_modules
+Python
+
+pycache/
+*.py[cod]
+*$py.class
+*.webm
+
+Virtual Environment
+
+venv/
+env/
+.env
+
+Database
+
+*.db
+*.sqlite3
+
+OS generated files
+
+.DS_Store
+Thumbs.db
+
+IDEs
+
+.vscode/
+.idea/
