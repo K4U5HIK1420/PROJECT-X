@@ -1,116 +1,105 @@
 import random
 import re
+import os
 from textblob import TextBlob
+import whisper  # <--- IMPORT WHISPER
 
-def mock_facial_analysis(video_input_data=None):
-    facial_score = random.randint(70, 95)
+# --- 0. LOAD WHISPER MODEL (Runs once at startup) ---
+print("Loading Whisper model... (this may take a moment)")
+# "base" is a good balance of speed and accuracy. Use "tiny" for faster results.
+model = whisper.load_model("base")
+print("Whisper model loaded!")
 
-    if facial_score >= 90:
-        dominant_emotion = "Confident"
-        feedback = "Excellent eye contact and positive expressions."
-    elif facial_score >= 80:
-        dominant_emotion = "Slight Anxiety"
-        feedback = "Maintain strong eye contact. Dominant state was Slight Anxiety."
-    else:
-        dominant_emotion = "Nervous"
-        feedback = "Try to relax and smile more. Work on maintaining eye contact."
+# --- 1. NEW TRANSCRIPTION FUNCTION ---
+def transcribe_video(video_path):
+    """
+    Uses OpenAI Whisper to transcribe the audio from the video file.
+    """
+    try:
+        # Whisper handles audio extraction automatically
+        result = model.transcribe(video_path)
+        return result["text"]
+    except Exception as e:
+        print(f"Error extracting audio: {e}")
+        return ""
 
-    attention = round(random.uniform(0.8, 1.0), 2)
-    confidence = round(random.uniform(0.7, 0.95), 2)
-    stress = round(random.uniform(0.05, 0.2), 2)
+# --- 2. HIGHLIGHTER FUNCTION ---
+def highlight_transcript_issues(transcript: str):
+    if not transcript:
+        return {"text": "", "issues": []}
 
-    return {
-        "facial_score": facial_score,
-        "emotions": {
-            "attention": attention,
-            "confidence": confidence,
-            "dominant_emotion": dominant_emotion,
-            "stress": stress
-        },
-        "feedback": feedback
-    }
+    issues = []
+    
+    # Detect Filler Words
+    fillers = ["um", "uh", "umm", "like", "you know", "sort of", "kind of"]
+    for filler in fillers:
+        for match in re.finditer(r'\b' + re.escape(filler) + r'\b', transcript, re.IGNORECASE):
+            issues.append({
+                "type": "filler",
+                "text": match.group(),
+                "start": match.start(),
+                "end": match.end(),
+                "feedback": "Filler word detected"
+            })
 
+    # Detect Repetitions
+    for match in re.finditer(r'\b(\w+)\s+\1\b', transcript, re.IGNORECASE):
+        issues.append({
+            "type": "repetition",
+            "text": match.group(),
+            "start": match.start(),
+            "end": match.end(),
+            "feedback": "Repetition detected"
+        })
+
+    issues.sort(key=lambda x: x["start"])
+    return {"text": transcript, "issues": issues}
+
+# --- 3. ANALYSIS FUNCTION ---
 def analyze_communication(transcript: str) -> dict:
+    highlight_data = highlight_transcript_issues(transcript)
+    
     if not transcript or len(transcript.strip()) == 0:
         return {
             "score": 0,
-            "clarity_feedback": "No transcript provided.",
+            "clarity_feedback": "No speech detected.",
             "sentiment": "Neutral",
-            "sentiment_scores": {"compound": 0.0, "neg": 0.0, "neu": 1.0, "pos": 0.0}
+            "transcript_analysis": highlight_data
         }
 
     blob = TextBlob(transcript)
     polarity = blob.sentiment.polarity
-    subjectivity = blob.sentiment.subjectivity
+    
+    # Scoring Logic
+    issue_count = len(highlight_data['issues'])
+    base_score = 100
+    deduction = issue_count * 5
+    final_score = max(50, base_score - deduction)
 
-    if polarity > 0.1:
-        sentiment = "Positive"
-    elif polarity < -0.1:
-        sentiment = "Negative"
+    if final_score >= 85:
+        feedback = "Excellent! Clear and concise communication."
+    elif final_score >= 70:
+        feedback = "Good, but try to reduce filler words."
     else:
-        sentiment = "Neutral"
-
-    sentences = re.split(r'[.!?]+', transcript)
-    sentences = [s.strip() for s in sentences if s.strip()]
-
-    avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences) if sentences else 0
-
-    filler_words = ["um", "uh", "like", "you know", "so", "well"]
-    filler_count = sum(transcript.lower().count(word) for word in filler_words)
-
-    words = re.findall(r'\b\w+\b', transcript.lower())
-    unique_words = set(words)
-    vocab_diversity = len(unique_words) / len(words) if words else 0
-
-    sentiment_score = max(0, (polarity + 1) * 50)
-    length_score = max(0, 100 - abs(avg_sentence_length - 15) * 5)
-    filler_score = max(0, 100 - filler_count * 10)
-    vocab_score = min(100, vocab_diversity * 200)
-
-    overall_score = int((sentiment_score + length_score + filler_score + vocab_score) / 4)
-    overall_score = min(100, max(0, overall_score))
-
-    if overall_score >= 85:
-        clarity_feedback = "Excellent communication skills. Clear, confident, and engaging."
-    elif overall_score >= 70:
-        clarity_feedback = "Good communication. Vocabulary usage was clear and professional."
-    elif overall_score >= 50:
-        clarity_feedback = "Average communication. Work on reducing fillers and improving sentence structure."
-    else:
-        clarity_feedback = "Needs improvement. Practice speaking clearly and confidently."
+        feedback = "Needs practice. You used many filler words."
 
     return {
-        "score": overall_score,
-        "clarity_feedback": clarity_feedback,
-        "sentiment": sentiment,
-        "sentiment_scores": {
-            "compound": polarity,
-            "neg": 0.0,
-            "neu": 1 - abs(polarity),
-            "pos": max(0, polarity)
-        }
+        "score": final_score,
+        "clarity_feedback": feedback,
+        "sentiment": "Positive" if polarity > 0 else "Neutral",
+        "transcript_analysis": highlight_data
+    }
+
+# --- 4. MOCK FACIAL ANALYSIS (Keep Mock for now) ---
+def mock_facial_analysis(video_input_data=None):
+    return {
+        "facial_score": random.randint(75, 90),
+        "emotions": {
+            "dominant_emotion": "Confident",
+            "confidence": 0.85
+        },
+        "feedback": "Good eye contact maintained."
     }
 
 def calculate_employability_score(profile_match_percentage: float, interview_score: int) -> int:
-    if profile_match_percentage < 0 or profile_match_percentage > 100:
-        raise ValueError("Profile match percentage must be between 0 and 100.")
-    if interview_score < 0 or interview_score > 100:
-        raise ValueError("Interview score must be between 0 and 100.")
-
-    profile_weight = 0.6
-    interview_weight = 0.4
-
-    employability_score = (profile_match_percentage * profile_weight) + (interview_score * interview_weight)
-
-    return int(round(employability_score, 0))
-
-if __name__ == '__main__':
-    facial = mock_facial_analysis()
-    print(facial)
-
-    test_transcript = "I am excited about this opportunity. I have experience in Python and machine learning. Um, I think I can contribute a lot to the team."
-    comm = analyze_communication(test_transcript)
-    print(comm)
-
-    score = calculate_employability_score(85.0, 78)
-    print(f"Employability Score: {score}")
+    return int((profile_match_percentage * 0.6) + (interview_score * 0.4))

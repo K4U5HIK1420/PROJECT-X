@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from data_processor import simple_resume_parser
 from ml_models import CareerClassifier, analyze_skill_gap, virtual_mentor_response
-from interview_analyzer import mock_facial_analysis, analyze_communication, calculate_employability_score
+from interview_analyzer import mock_facial_analysis, analyze_communication, calculate_employability_score, transcribe_video
 import psycopg2
 from psycopg2 import sql
 
@@ -19,29 +19,38 @@ def mock_facial_interview():
         return jsonify({"error": "No video file received"}), 400
 
     video = request.files["video"]
+    # 1. Save video temporarily so Whisper can read it
+    temp_filename = "temp_interview.webm"
+    video.save(temp_filename)
 
-    # Optional: save video temporarily
-    save_path = "uploaded_interview.webm"
-    video.save(save_path)
+    try:
+        # 2. REAL AI TRANSCRIPTION
+        print("Starting transcription...")
+        real_transcript = transcribe_video(temp_filename)
+        print(f"Transcribed Text: {real_transcript}")
+        
+        # 3. Analyze the REAL transcript
+        facial_result = mock_facial_analysis()
+        comm_result = analyze_communication(real_transcript)
 
-    # ---- MOCK ANALYSIS (replace later with real ML) ----
-    response = {
-        "employability_score": 72,
-        "interview_score": 68,
-        "communication_analysis": {
-            "sentiment": "Positive",
-            "clarity_feedback": "Good clarity, but try to structure answers better."
-        },
-        "facial_analysis": {
-            "emotions": {
-                "dominant_emotion": "Confident"
-            },
-            "feedback": "Maintained eye contact and calm expressions."
+        # 4. Calculate Score
+        response = {
+            "employability_score": 75, # You can make this dynamic later
+            "interview_score": comm_result['score'],
+            "communication_analysis": comm_result,
+            "facial_analysis": facial_result
         }
-    }
+        
+        return jsonify(response)
 
-    return jsonify(response)
-
+    except Exception as e:
+        print(f"Error processing interview: {e}")
+        return jsonify({"error": "Processing failed"}), 500
+        
+    finally:
+        # 5. Cleanup: Delete the temp file
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
 
 career_classifier = CareerClassifier()
 career_classifier.train_model()
