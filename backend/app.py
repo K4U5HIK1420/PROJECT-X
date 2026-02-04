@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from data_processor import simple_resume_parser
 from ml_models import CareerClassifier, analyze_skill_gap, virtual_mentor_response
-from interview_analyzer import mock_facial_analysis, analyze_communication, calculate_employability_score, transcribe_video
+from interview_analyzer import analyze_video_faces, analyze_communication, calculate_employability_score, transcribe_video
 import psycopg2
 from psycopg2 import sql
 
@@ -30,7 +30,7 @@ def mock_facial_interview():
         print(f"Transcribed Text: {real_transcript}")
         
         # 3. Analyze the REAL transcript
-        facial_result = mock_facial_analysis()
+        facial_result = analyze_video_faces(temp_filename)
         comm_result = analyze_communication(real_transcript)
 
         # 4. Calculate Score
@@ -129,7 +129,7 @@ def mock_interview():
     except ValueError:
         return jsonify({"error": "'profile_match_percentage' must be a valid number."}), 400
 
-    facial_result = mock_facial_analysis(video_input_data=None)
+    facial_result = analyze_video_faces(video_input_data=None)
     communication_result = analyze_communication(transcript)
     interview_score = int(round((facial_result['facial_score'] + communication_result['score']) / 2, 0))
     employability_score = calculate_employability_score(profile_match_percentage, interview_score)
