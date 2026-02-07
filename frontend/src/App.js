@@ -395,25 +395,38 @@ const MentorView = ({ chatHistory, chatQuery, setChatQuery, handleChatQuery, isL
                 <button onClick={handleChatQuery} className={`px-4 rounded-r-lg text-white font-semibold flex items-center justify-center transition-colors ${isLoading || recommendedDomain === 'Unknown' ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-700'}`} disabled={isLoading || recommendedDomain === 'Unknown'}>Send</button>
             </div>
         </Card>
-        <Card title="University Batch Analytics (Mock)" icon={Zap}>
-           <div className="h-full space-y-4">
-               <p className="text-gray-600 mb-4">This administrative view would provide batch-level insights into student readiness, visible only to faculty/admin staff.</p>
-               <h4 className="font-bold text-gray-800">Key Metrics:</h4>
-               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                   <li>Average Employability Score: <strong>78.5</strong> (Goal: 85+)</li>
-                   <li>Top Skill Gap: <strong>Cloud Computing (35% of batch)</strong></li>
-                   <li>Most Recommended Domain: <strong>Software Development</strong></li>
-                   <li>Students Requiring Mentorship: <strong>12%</strong> (Score below 60)</li>
-               </ul>
-               <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                   <p className="text-sm font-semibold text-indigo-700">Actionable Insight:</p>
-                   <p className="text-xs text-indigo-600">Recommend a mandatory workshop on <strong>Cloud Computing</strong> to bridge the largest batch-level skill gap.</p>
-               </div>
-           </div>
-       </Card>
     </div>
    );
+   
+
+
 };
+// --- VIEW 4: UNIVERSITY DASHBOARD ---
+const UniversityDashboardView = () => (
+  <Card title="University Batch Analytics (Mock)" icon={Zap}>
+    <div className="h-full space-y-4">
+      <p className="text-gray-600 mb-4">
+        This administrative view would provide batch-level insights into student readiness,
+        visible only to faculty/admin staff.
+      </p>
+
+      <h4 className="font-bold text-gray-800">Key Metrics:</h4>
+      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+        <li>Average Employability Score: <strong>78.5</strong> (Goal: 85+)</li>
+        <li>Top Skill Gap: <strong>Cloud Computing (35% of batch)</strong></li>
+        <li>Most Recommended Domain: <strong>Software Development</strong></li>
+        <li>Students Requiring Mentorship: <strong>12%</strong> (Score below 60)</li>
+      </ul>
+
+      <div className="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="text-sm font-semibold text-indigo-700">Actionable Insight:</p>
+        <p className="text-xs text-indigo-600">
+          Recommend a mandatory workshop on <strong>Cloud Computing</strong>.
+        </p>
+      </div>
+    </div>
+  </Card>
+);
 
 // --- MAIN APP COMPONENT ---
 export default function App() {
@@ -461,6 +474,7 @@ export default function App() {
         <NavButton view="profile" icon={User} label="Profile" currentView={currentView} setCurrentView={setCurrentView} />
         <NavButton view="interview" icon={Video} label="Interview" currentView={currentView} setCurrentView={setCurrentView} />
         <NavButton view="mentor" icon={MessageCircle} label="Mentor" currentView={currentView} setCurrentView={setCurrentView} />
+        <NavButton view="dashboard" icon={GitBranch} label="Dashboard" currentView={currentView} setCurrentView={setCurrentView} />
       </div>
       <div className="ml-24 flex-1 p-8">
         <div className="max-w-6xl mx-auto">
@@ -469,6 +483,7 @@ export default function App() {
                 {currentView === 'profile' && 'Career Profile Analysis'}
                 {currentView === 'interview' && 'AI Mock Interview'}
                 {currentView === 'mentor' && 'Career Mentorship'}
+                {currentView === 'dashboard' && 'UniversityDashboardView' }
             </h1>
             <p className="text-gray-500 mt-2">AI-driven insights for university students</p>
           </header>
@@ -476,6 +491,7 @@ export default function App() {
           {currentView === 'profile' && <ProfileView resumeText={resumeText} setResumeText={setResumeText} analysisResult={analysisResult} profileMatchPercentage={profileMatchPercentage} recommendedDomain={recommendedDomain} isLoading={isLoading} handleAnalyzeProfile={handleAnalyzeProfile} />}
           {currentView === 'interview' && <InterviewView interviewResult={interviewResult} setInterviewResult={setInterviewResult} />}
           {currentView === 'mentor' && <MentorView chatHistory={chatHistory} chatQuery={chatQuery} setChatQuery={setChatQuery} handleChatQuery={handleChatQuery} isLoading={isLoading} recommendedDomain={recommendedDomain} />}
+          {currentView === 'dashboard' && <UniversityDashboardView />}
         </div>
       </div>
     </div>
