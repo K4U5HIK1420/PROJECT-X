@@ -246,6 +246,26 @@ const InterviewView = ({ interviewResult, setInterviewResult }) => {
     streamRef.current?.getTracks().forEach(track => track.stop());
   };
 
+  const downloadReport = async () => {
+  if (!interviewResult) return;
+
+  const res = await fetch(`${API_BASE_URL}/download_interview_report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(interviewResult),
+  });
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "AI_Interview_Report.pdf";
+  a.click();
+
+  window.URL.revokeObjectURL(url);
+};
+
   const evaluatePerformance = async () => {
     if (!recordedChunksRef.current.length) { alert("No recording found"); return; }
     try {
@@ -303,10 +323,34 @@ const InterviewView = ({ interviewResult, setInterviewResult }) => {
           </>
         )}
       </Card>
+      
 
       <Card title="Interview Performance Feedback" icon={Zap}>
         {phase === "result" && interviewResult ? (
           <>
+          <button
+  onClick={async () => {
+    const res = await fetch(`${API_BASE_URL}/interview_report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(interviewResult),
+    });
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "AI_Interview_Report.pdf";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }}
+  className="w-full mt-3 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+>
+  📄 Download Interview Report
+</button>
+
+
             <h3 className="text-2xl font-bold text-blue-600 mb-2">Employability Score: {interviewResult.employability_score}</h3>
             <p><strong>Sentiment:</strong> {interviewResult.communication_analysis?.sentiment}</p>
             <p><strong>Dominant Emotion:</strong> {interviewResult.facial_analysis?.emotions?.dominant_emotion}</p>
@@ -315,6 +359,7 @@ const InterviewView = ({ interviewResult, setInterviewResult }) => {
             {/* --- THIS IS THE NEW PART THAT RENDERS THE TRANSCRIPT --- */}
             <TranscriptHighlighter analysis={interviewResult.communication_analysis?.transcript_analysis} />
           </>
+          
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
              <Zap className="mb-2 opacity-20" size={48} />

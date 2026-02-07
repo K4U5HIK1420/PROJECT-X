@@ -1,10 +1,24 @@
+import os
 import pandas as pd
 import numpy as np
+import google.generativeai as genai
+from dotenv import load_dotenv
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
 from sklearn.multiclass import OneVsRestClassifier
+
+# ==========================================
+# 🔑 PASTE YOUR API KEY HERE
+# ==========================================
+MY_API_KEY = "AIzaSyDTBlo5Ps4QA_DkZjMF1G8Lw0AEWn8k12E"  # <--- Paste inside these quotes!
+# ==========================================
+# Configure Gemini
+if MY_API_KEY == "AIzaSyDxxxx...":
+    print("⚠️ WARNING: You haven't replaced the placeholder API key in ml_models.py yet!")
+else:
+    genai.configure(api_key=MY_API_KEY)
 
 MOCK_DATA = {
     'profile_text': [
@@ -124,127 +138,38 @@ def analyze_skill_gap(required_skills: list, student_skills: list) -> dict:
         "completeness_percentage": round(completeness_percentage, 1)
     }
 
-def virtual_mentor_response(
-    query: str,
-    domain: str,
-    employability_score: float = 0,
-    missing_skills: list = None
-) -> str:
+# --- NEW REAL AI MENTOR FUNCTION ---
+# --- UPDATED MENTOR FUNCTION ---
+def virtual_mentor_response(query, domain, employability_score, missing_skills):
+    """
+    Sends the user's query and profile context to Google Gemini.
+    """
+    
+    # Check if key is valid
+    if not MY_API_KEY or MY_API_KEY == "AIzaSyDxxxx...":
+        return "I am offline. Please open ml_models.py and paste your Google API Key."
 
-    query = query.lower()
-    missing_skills = missing_skills or []
+    context_prompt = f"""
+    You are an expert Career Mentor for university students.
+    You are talking to a student interested in: {domain}.
+    
+    Student Profile Context:
+    - Current Employability Score: {employability_score}/100
+    - Identified Skill Gaps: {', '.join(missing_skills) if missing_skills else 'None identified'}
+    
+    The student asks: "{query}"
+    
+    Provide a helpful, encouraging, and specific answer (max 3-4 sentences). 
+    """
 
-    # Determine confidence level
-    if employability_score >= 85:
-        level = "job-ready"
-    elif employability_score >= 65:
-        level = "intermediate"
-    else:
-        level = "beginner"
-
-    intro = f"As your Virtual Career Mentor for **{domain}**, here’s my honest guidance:\n\n"
-
-    # -------------------------------
-    # Career Roadmap (NEW)
-    # -------------------------------
-    if any(k in query for k in ["roadmap", "career path", "step by step", "plan"]):
-        roadmap = generate_career_roadmap(domain, employability_score, missing_skills)
-
-        response = f"Here’s a **step-by-step career roadmap for {domain}** 👇\n\n"
-        response += f"🎯 Current Level: **{roadmap['current_level']}**\n\n"
-
-        for phase in roadmap["roadmap"]:
-            response += f"🔹 **{phase['phase']}**\n"
-            response += "Focus:\n"
-            for item in phase["focus"]:
-                response += f"• {item}\n"
-            response += f"Goal: {phase['goal']}\n\n"
-
-        response += "Follow this sequentially — don’t rush phases."
-        return response
-
-    # -------------------------------
-    # Learning / Courses
-    # -------------------------------
-    if any(k in query for k in ["learn", "study", "course", "next", "skill"]):
-        if missing_skills:
-            return (
-                intro +
-                f"You’re currently at an **{level}** stage.\n\n"
-                f"Your biggest growth opportunity right now is:\n"
-                f"👉 **" + ", ".join(missing_skills[:3]) + "**\n\n"
-                "My advice:\n"
-                "• Pick ONE skill and go deep\n"
-                "• Build a small but real project\n"
-                "• Document what you learn (GitHub / notes)\n\n"
-                "This approach compounds fast."
-            )
-        else:
-            return (
-                intro +
-                "Your skill alignment is already strong 👍\n\n"
-                "Now focus on:\n"
-                "• Advanced projects\n"
-                "• Mock interviews\n"
-                "• System design & real-world scenarios\n\n"
-                "You’re closer than you think."
-            )
-
-    # -------------------------------
-    # Interview Preparation
-    # -------------------------------
-    if any(k in query for k in ["interview", "prepare", "confidence"]):
-        return (
-            intro +
-            "Interview success comes down to clarity, not memorization.\n\n"
-            "Focus on:\n"
-            "• Explaining your projects end-to-end\n"
-            "• Why you made certain design choices\n"
-            "• Common mistakes & what you learned\n\n"
-            "Mock interviews + self-review = confidence."
-        )
-
-    # -------------------------------
-    # Jobs / Market / Salary
-    # -------------------------------
-    if any(k in query for k in ["job", "salary", "market", "hiring"]):
-        return (
-            intro +
-            f"The job market for **{domain}** is competitive, but fair.\n\n"
-            "What actually works:\n"
-            "• Strong fundamentals\n"
-            "• 2–3 solid projects\n"
-            "• A clean, honest resume\n\n"
-            "Avoid chasing trends blindly — consistency wins."
-        )
-
-    # -------------------------------
-    # Confusion / Motivation
-    # -------------------------------
-    if any(k in query for k in ["confused", "lost", "stuck", "direction"]):
-        return (
-            intro +
-            "Feeling confused is normal — it means you care.\n\n"
-            "Here’s how to reset:\n"
-            "• Pick ONE domain\n"
-            "• Pick ONE roadmap\n"
-            "• Pick ONE project\n\n"
-            "Progress beats perfection. Keep moving."
-        )
-
-    # -------------------------------
-    # Default fallback
-    # -------------------------------
-    return (
-        intro +
-        "You can ask me about:\n"
-        "• What to learn next\n"
-        "• Interview preparation\n"
-        "• Job readiness\n"
-        "• Career roadmap\n\n"
-        "Ask freely — that’s how growth happens."
-    )
-
+    try:
+        # Call Gemini API
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(context_prompt)
+        return response.text
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return "I'm having trouble connecting to the brain right now. Please try again in a moment."
 
 def generate_career_roadmap(domain: str, employability_score: float, missing_skills: list):
     

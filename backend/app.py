@@ -7,6 +7,9 @@ from ml_models import CareerClassifier, analyze_skill_gap, virtual_mentor_respon
 from interview_analyzer import analyze_video_faces, analyze_communication, calculate_employability_score, transcribe_video
 import psycopg2
 from psycopg2 import sql
+from flask import send_file, request
+from report_generator import generate_interview_report
+
 
 load_dotenv()
 
@@ -165,3 +168,13 @@ def mentor_chat():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+    @app.route("/api/v1/interview_report", methods=["POST"])
+    def interview_report():
+        data = request.json  # interview result data
+        pdf_path = generate_interview_report(data)
+        return send_file(
+        pdf_path,
+        as_attachment=True,
+        download_name="AI_Interview_Report.pdf"
+    )
